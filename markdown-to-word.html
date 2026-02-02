@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown 转 Word 工具</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <script src="https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 16px;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: #999;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            background: #f0f2ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .preview-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .preview-content {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .preview-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .preview-content table th,
+        .preview-content table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .preview-content table th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        .preview-content table tr:nth-child(even) {
+            background: #f8f9ff;
+        }
+
+        .preview-content table tr:hover {
+            background: #f0f2ff;
+        }
+
+        .preview-content h1,
+        .preview-content h2,
+        .preview-content h3,
+        .preview-content h4,
+        .preview-content h5,
+        .preview-content h6 {
+            margin: 20px 0 10px 0;
+            color: #333;
+        }
+
+        .preview-content h1 {
+            font-size: 24px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .preview-content h2 {
+            font-size: 20px;
+        }
+
+        .preview-content h3 {
+            font-size: 18px;
+        }
+
+        .preview-content ul,
+        .preview-content ol {
+            margin: 10px 0 10px 20px;
+        }
+
+        .preview-content li {
+            margin: 5px 0;
+        }
+
+        .preview-content blockquote {
+            border-left: 4px solid #667eea;
+            padding-left: 15px;
+            margin: 15px 0;
+            color: #666;
+            font-style: italic;
+        }
+
+        .preview-content code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .preview-content pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+
+        .preview-content pre code {
+            background: none;
+            padding: 0;
+        }
+
+        /* Mermaid 图表样式 */
+        .mermaid-diagram {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 8px;
+            text-align: center;
+            overflow-x: auto;
+            display: block;
+            width: 100%;
+            min-height: 200px;
+            min-width: 400px;
+        }
+        
+        /* ER图需要更大的空间 */
+        .mermaid-diagram:has(.mermaid[data-type="er"]) {
+            min-width: 800px;
+            min-height: 600px;
+        }
+
+        .mermaid-diagram .mermaid {
+            display: block;
+            width: 100%;
+            min-width: 400px;
+            min-height: 300px;
+        }
+        
+        /* ER图容器 */
+        .mermaid-diagram .mermaid[data-type="er"] {
+            min-width: 800px;
+            min-height: 600px;
+        }
+
+        .mermaid-diagram svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        /* 修复 NaN 问题：确保 SVG 有有效的尺寸 */
+        .mermaid-diagram svg[width="NaN"],
+        .mermaid-diagram svg[height="NaN"] {
+            width: 800px !important;
+            height: 600px !important;
+        }
+        
+        .mermaid-diagram svg:not([width]),
+        .mermaid-diagram svg:not([height]) {
+            width: 800px;
+            height: auto;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success-message {
+            display: none;
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 12px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .upload-area {
+                padding: 30px 20px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Markdown 转 Word 工具</h1>
+            <p>支持导入 Markdown 文件并转换为 Word 文档，完美渲染表格</p>
+        </div>
+
+        <div class="content">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">点击或拖拽 Markdown 文件到此处</div>
+                <div class="upload-hint">支持 .md 和 .markdown 格式文件</div>
+                <input type="file" id="fileInput" accept=".md,.markdown,text/markdown">
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-size" id="fileSize"></div>
+            </div>
+
+            <div class="preview-section" id="previewSection" style="display: none;">
+                <div class="section-title">📋 预览</div>
+                <div class="preview-content" id="previewContent"></div>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>正在生成 Word 文档...</div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" id="convertBtn" disabled>
+                    <span>💾</span>
+                    <span>转换为 Word 文档</span>
+                </button>
+                <button class="btn btn-secondary" id="clearBtn" style="display: none;">
+                    <span>🔄</span>
+                    <span>清除</span>
+                </button>
+            </div>
+
+            <div class="success-message" id="successMessage">
+                ✅ Word 文档生成成功！
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const previewSection = document.getElementById('previewSection');
+        const previewContent = document.getElementById('previewContent');
+        const convertBtn = document.getElementById('convertBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const loading = document.getElementById('loading');
+        const successMessage = document.getElementById('successMessage');
+
+        let markdownContent = '';
+        let currentFileName = '';
+
+        // 全局错误处理：捕获Mermaid渲染错误（包括NaN错误）
+        window.addEventListener('error', function(event) {
+            const errorMsg = event.message || '';
+            const isMermaidError = (
+                errorMsg.includes('NaN') || 
+                errorMsg.includes('Expected number') ||
+                errorMsg.includes('attribute d') ||
+                errorMsg.includes('Syntax error') ||
+                (event.filename && event.filename.includes('mermaid'))
+            );
+            
+            if (isMermaidError) {
+                console.error('[Mermaid全局错误捕获]', {
+                    message: errorMsg,
+                    filename: event.filename,
+                    lineno: event.lineno
+                });
+                
+                // 查找最近的Mermaid容器并显示错误
+                const mermaidContainers = document.querySelectorAll('.mermaid');
+                if (mermaidContainers.length > 0) {
+                    const lastContainer = mermaidContainers[mermaidContainers.length - 1];
+                    if (lastContainer && !lastContainer.querySelector('.mermaid-error')) {
+                        const mermaidCode = lastContainer.textContent || '';
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'mermaid-error';
+                        errorDiv.style.cssText = 'color: #f44336; padding: 20px; border: 1px solid #f44336; border-radius: 8px; background: rgba(244, 67, 54, 0.1); margin: 10px 0;';
+                        errorDiv.innerHTML = `
+                            <strong>⚠️ Mermaid图表渲染错误</strong><br>
+                            <small>错误信息: ${errorMsg}</small><br>
+                            ${errorMsg.includes('NaN') ? '<small style="color: #ff9800;">提示: 这可能是由于图表定义问题或容器尺寸问题导致的</small><br>' : ''}
+                            <details style="margin-top: 10px;">
+                                <summary style="cursor: pointer; color: #666;">查看代码</summary>
+                                <pre style="margin-top: 5px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 12px; overflow-x: auto; max-height: 200px; overflow-y: auto;">${mermaidCode.substring(0, 1000)}</pre>
+                            </details>
+                        `;
+                        lastContainer.parentNode.insertBefore(errorDiv, lastContainer.nextSibling);
+                    }
+                }
+                
+                event.preventDefault();
+                return true;
+            }
+        }, true);
+        
+        // 初始化 Mermaid
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            suppressErrors: true,
+            themeVariables: {
+                primaryColor: '#667eea',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#5568d3',
+                lineColor: '#667eea',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft YaHei", sans-serif',
+                fontSize: '14px'
+            },
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis',
+                padding: 20,
+                nodeSpacing: 50,
+                rankSpacing: 50
+            },
+            // ER图特殊配置
+            er: {
+                useMaxWidth: true,
+                diagramPadding: 20,
+                layoutDirection: 'TB'
+            }
+        });
+
+        // 配置 marked，支持 mermaid 代码块
+        const renderer = new marked.Renderer();
+        
+        // 自定义代码块渲染器，处理 mermaid 代码块
+        renderer.code = function(code, language) {
+            if (language === 'mermaid') {
+                // 清理代码内容，移除可能的空白字符
+                const cleanCode = code.trim();
+                if (!cleanCode) {
+                    return `<pre><code class="language-mermaid">${code}</code></pre>`;
+                }
+                
+                // 检测是否是ER图
+                const isERDiagram = cleanCode.trim().toLowerCase().startsWith('erdiagram') ||
+                    cleanCode.includes('erDiagram');
+                
+                // 预处理ER图代码，移除关系描述中的中文
+                let processedCode = cleanCode;
+                if (isERDiagram) {
+                    const lines = cleanCode.split('\n');
+                    const processedLines = [];
+                    
+                    for (let i = 0; i < lines.length; i++) {
+                        let line = lines[i];
+                        // 检测是否是关系定义行
+                        const isRelationLine = /^\s*\w+\s*(\|\||--|o\{|\}o|\|o|o\|)/.test(line);
+                        
+                        if (isRelationLine) {
+                            // 移除关系描述中的中文（冒号后的中文部分）
+                            line = line.replace(/:\s*[\u4e00-\u9fa5]+.*$/, '');
+                            line = line.replace(/:\s*$/, '');
+                        }
+                        
+                        processedLines.push(line);
+                    }
+                    
+                    processedCode = processedLines.join('\n');
+                }
+                
+                const isComplexDiagram = isERDiagram || processedCode.split('\n').length > 20;
+                
+                // 根据图表类型设置不同的最小尺寸
+                const minWidth = isComplexDiagram ? '800px' : '400px';
+                const minHeight = isComplexDiagram ? '600px' : '300px';
+                
+                // 为 mermaid 代码块生成唯一ID
+                const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                const dataType = isERDiagram ? 'data-type="er"' : '';
+                return `<div class="mermaid-diagram" data-mermaid-id="${id}">
+                    <div class="mermaid" id="${id}" ${dataType} style="display: block; width: 100%; min-width: ${minWidth}; min-height: ${minHeight};">${processedCode}</div>
+                </div>`;
+            }
+            // 其他代码块使用默认渲染
+            return `<pre><code class="language-${language}">${this.options.highlight ? this.options.highlight(code, language) : code}</code></pre>`;
+        };
+
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            tables: true,
+            renderer: renderer
+        });
+
+        // 等待库加载
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                if (checkLibraryLoaded()) {
+                    console.log('Word 转换库已成功加载');
+                } else {
+                    console.warn('Word 转换库可能未正确加载。可用的全局变量:', {
+                        HTMLDocx: typeof HTMLDocx,
+                        htmlDocx: typeof htmlDocx,
+                        asBlob: typeof asBlob
+                    });
+                }
+            }, 1000);
+        });
+
+        // 点击上传区域
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 文件选择
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        // 拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && (file.name.endsWith('.md') || file.name.endsWith('.markdown'))) {
+                handleFile(file);
+            } else {
+                alert('请选择 Markdown 文件（.md 或 .markdown）');
+            }
+        });
+
+        // 处理文件
+        function handleFile(file) {
+            currentFileName = file.name.replace(/\.(md|markdown)$/i, '');
+            fileName.textContent = file.name;
+            fileSize.textContent = `文件大小: ${(file.size / 1024).toFixed(2)} KB`;
+            fileInfo.classList.add('show');
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                markdownContent = e.target.result;
+                convertBtn.disabled = true;
+                loading.classList.add('show');
+                try {
+                    await renderPreview();
+                } catch (error) {
+                    console.error('渲染预览失败:', error);
+                    alert('渲染预览失败，请检查控制台错误信息');
+                } finally {
+                    loading.classList.remove('show');
+                    convertBtn.disabled = false;
+                    clearBtn.style.display = 'inline-flex';
+                }
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        // GLM代理服务器配置
+        const PROXY_API_URL = 'http://localhost:8888/api/glm';
+
+        // 通过代理服务器调用GLM模型生成文本说明
+        async function callGLMAPI(content) {
+            try {
+                console.log('通过代理服务器调用GLM模型，内容长度:', content.length);
+                const prompt = `请用简洁明了的文字说明以下内容，不需要结构化设计，只需要清晰的文本描述：\n\n${content}`;
+                
+                const response = await fetch(PROXY_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: prompt
+                    })
+                });
+
+                console.log('代理服务器响应状态:', response.status);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('代理服务器错误响应:', errorText);
+                    let errorMessage = `代理服务器调用失败: ${response.status} ${response.statusText}`;
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                            // 如果是余额不足错误，提供友好的提示
+                            if (errorMessage.includes('余额不足') || errorMessage.includes('充值')) {
+                                errorMessage = `GLM API余额不足，无法生成文本说明。请访问 https://open.bigmodel.cn 充值后重试。将保留原始代码块内容。`;
+                            }
+                        }
+                    } catch (e) {
+                        errorMessage += ` - ${errorText}`;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const data = await response.json();
+                console.log('代理服务器返回数据:', data);
+                
+                // 代理服务器返回格式：data.text
+                if (data.text) {
+                    return data.text;
+                } else if (data.error) {
+                    // 如果是余额不足错误，提供友好的提示
+                    if (data.error.includes('余额不足') || data.error.includes('充值')) {
+                        throw new Error(`GLM API余额不足，无法生成文本说明。请访问 https://open.bigmodel.cn 充值后重试。将保留原始代码块内容。`);
+                    }
+                    throw new Error(data.error);
+                } else {
+                    console.error('代理服务器返回格式异常，完整响应:', JSON.stringify(data, null, 2));
+                    throw new Error('代理服务器返回格式异常，请查看控制台');
+                }
+            } catch (error) {
+                // 代理未启动或网络错误：不抛错，返回 null，由调用方保留原文并继续转换
+                if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                    if (!window._glmConnectionWarningShown) {
+                        console.warn('GLM 服务未连接（localhost:8888），相关代码块将保留原文。如需 AI 说明可运行: python3 glm_proxy.py');
+                        window._glmConnectionWarningShown = true;
+                    }
+                    return null;
+                }
+                console.error('GLM API调用错误:', error);
+                throw error;
+            }
+        }
+
+        // 识别并处理流程、树状结构和示例代码块
+        function isSpecialCodeBlock(content) {
+            // 检测是否是 Mermaid 代码块（不处理，保留原样用于渲染）
+            const isMermaid = /^\s*(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|gitgraph|journey|requirement)/i.test(content.trim());
+            if (isMermaid) {
+                return false; // Mermaid 代码块不调用 GLM，保留原样用于渲染
+            }
+            
+            // 检测是否是流程说明
+            const isFlow = /[↓→←↑─]|流程|审批|验证|提交|审核|通过|失败/.test(content);
+            // 检测是否是树状结构
+            const isTree = /[├└│─]/.test(content);
+            // 检测是否是示例（包含"示例"、"如"、"例如"等关键词）
+            const isExample = /示例|如：|例如|示例：/.test(content);
+            
+            return isFlow || isTree || isExample;
+        }
+
+        // 处理Markdown内容，只对代码块（灰色背景）中的特殊内容调用GLM生成说明
+        // 注意：只处理代码块，其他内容（表格、标题、列表等）保持正常渲染
+        async function processMarkdownWithGLM(markdown) {
+            // 使用正则表达式匹配代码块（```代码块```）
+            const codeBlockRegex = /```[\s\S]*?```/g;
+            const codeBlocks = markdown.match(codeBlockRegex) || [];
+            
+            let processedMarkdown = markdown;
+            
+            // 从后往前处理，避免替换位置偏移
+            for (let i = codeBlocks.length - 1; i >= 0; i--) {
+                const codeBlock = codeBlocks[i];
+                // 提取代码块内容（去除```和语言标识）
+                const contentMatch = codeBlock.match(/```(?:\w+)?\n?([\s\S]*?)```/);
+                if (contentMatch && contentMatch[1]) {
+                    const content = contentMatch[1].trim();
+                    const languageMatch = codeBlock.match(/```(\w+)/);
+                    const language = languageMatch ? languageMatch[1].toLowerCase() : '';
+                    
+                    // Mermaid 代码块不处理，保留原样用于渲染
+                    if (language === 'mermaid') {
+                        continue; // 跳过 Mermaid 代码块，保留原样
+                    }
+                    
+                    // 只对特殊代码块（流程、树状结构、示例）调用GLM API
+                    // 其他代码块保持原样，其他内容（表格、标题、列表等）完全不受影响
+                    if (isSpecialCodeBlock(content)) {
+                        try {
+                            const explanation = await callGLMAPI(content);
+                            if (explanation != null) {
+                                processedMarkdown = processedMarkdown.replace(
+                                    codeBlock,
+                                    `\n\n**说明：**\n\n${explanation}\n\n`
+                                );
+                            }
+                            // explanation 为 null 时（如代理未启动）保留原代码块，不替换
+                        } catch (error) {
+                            console.warn('处理代码块时出错，保留原内容:', error);
+                            // 如果是余额不足，在控制台给出明确提示（只提示一次）
+                            if (error.message && error.message.includes('余额不足') && !window._balanceWarningShown) {
+                                console.error('⚠️ GLM API余额不足，所有特殊代码块将保留原始格式');
+                                console.error('   请访问 https://open.bigmodel.cn 或 https://right.codes 充值后刷新页面重试');
+                                // 在页面上显示友好的提示
+                                const warningDiv = document.createElement('div');
+                                warningDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; max-width: 400px; z-index: 10000; box-shadow: 0 2px 8px rgba(0,0,0,0.15);';
+                                warningDiv.innerHTML = `
+                                    <div style="font-weight: bold; color: #856404; margin-bottom: 8px;">⚠️ GLM API余额不足</div>
+                                    <div style="color: #856404; font-size: 14px; margin-bottom: 8px;">特殊代码块将保留原始格式</div>
+                                    <div style="font-size: 12px; color: #856404;">
+                                        请访问 <a href="https://open.bigmodel.cn" target="_blank" style="color: #0066cc;">open.bigmodel.cn</a> 
+                                        或 <a href="https://right.codes" target="_blank" style="color: #0066cc;">right.codes</a> 充值后刷新页面重试
+                                    </div>
+                                    <button onclick="this.parentElement.remove()" style="margin-top: 8px; padding: 4px 12px; background: #ffc107; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">知道了</button>
+                                `;
+                                document.body.appendChild(warningDiv);
+                                // 5秒后自动关闭
+                                setTimeout(() => {
+                                    if (warningDiv.parentElement) {
+                                        warningDiv.remove();
+                                    }
+                                }, 10000);
+                                window._balanceWarningShown = true;
+                            }
+                            // 如果API调用失败，保留原代码块，不影响其他内容
+                        }
+                    }
+                    // 如果不是特殊代码块，保持原样，不进行任何处理
+                }
+            }
+            
+            // 返回处理后的Markdown，其他内容（表格、标题、列表等）保持不变
+            return processedMarkdown;
+        }
+
+        // 预处理ER图代码，移除关系描述中的中文字符
+        function preprocessERDiagramCode(mermaidCode) {
+            if (!mermaidCode.trim().toLowerCase().startsWith('erdiagram') && 
+                !mermaidCode.includes('erDiagram')) {
+                return mermaidCode; // 不是ER图，直接返回
+            }
+            
+            const lines = mermaidCode.split('\n');
+            const processedLines = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                
+                // 检测是否是关系定义行（包含 ||, --, o{, }o, |o, o| 等）
+                const isRelationLine = /^\s*\w+\s*(\|\||--|o\{|\}o|\|o|o\|)/.test(line);
+                
+                if (isRelationLine) {
+                    // 移除关系描述中的中文（冒号后的中文部分）
+                    // 匹配模式：: 中文内容
+                    line = line.replace(/:\s*[\u4e00-\u9fa5]+.*$/, '');
+                    // 如果还有冒号但没有内容，也移除冒号
+                    line = line.replace(/:\s*$/, '');
+                }
+                
+                processedLines.push(line);
+            }
+            
+            return processedLines.join('\n');
+        }
+        
+        // 安全的Mermaid渲染函数
+        async function safeRenderMermaid(element, mermaidCode) {
+            try {
+                // 预处理ER图代码，移除关系描述中的中文
+                const processedCode = preprocessERDiagramCode(mermaidCode);
+                
+                // 检测图表类型，ER图需要更大的容器
+                const isERDiagram = processedCode.trim().toLowerCase().startsWith('erdiagram') ||
+                    processedCode.includes('erDiagram');
+                const isComplexDiagram = isERDiagram || processedCode.split('\n').length > 20;
+                
+                // 根据图表类型设置不同的最小尺寸
+                const minWidth = isComplexDiagram ? '800px' : '400px';
+                const minHeight = isComplexDiagram ? '600px' : '300px';
+                
+                // 确保元素有尺寸（这是防止NaN的关键）
+                if (!element.offsetWidth || !element.offsetHeight) {
+                    element.style.display = 'block';
+                    element.style.width = '100%';
+                    element.style.minWidth = minWidth;
+                    element.style.minHeight = minHeight;
+                    // 等待样式应用
+                    await new Promise(resolve => setTimeout(resolve, 150));
+                } else {
+                    // 即使有尺寸，也确保最小尺寸足够
+                    if (element.offsetWidth < (isComplexDiagram ? 800 : 400)) {
+                        element.style.minWidth = minWidth;
+                    }
+                    if (element.offsetHeight < (isComplexDiagram ? 600 : 300)) {
+                        element.style.minHeight = minHeight;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+                
+                // 验证元素尺寸
+                if (!element.offsetWidth || !element.offsetHeight) {
+                    throw new Error('容器没有有效的尺寸，无法渲染图表');
+                }
+                
+                // ER图需要更大的渲染空间
+                if (isERDiagram) {
+                    // 确保父容器也有足够空间
+                    let parent = element.parentElement;
+                    while (parent && parent !== document.body) {
+                        if (parent.offsetWidth < 800) {
+                            parent.style.minWidth = '800px';
+                        }
+                        if (parent.offsetHeight < 600) {
+                            parent.style.minHeight = '600px';
+                        }
+                        parent = parent.parentElement;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                // 验证语法（使用预处理后的代码）
+                try {
+                    const parseResult = mermaid.parse(processedCode);
+                    if (parseResult) {
+                        console.warn('[Mermaid] 语法警告:', parseResult);
+                    }
+                } catch (parseError) {
+                    // 如果预处理后的代码仍然有错误，显示详细错误信息
+                    console.error('[Mermaid] 语法错误:', parseError);
+                    throw new Error(`Mermaid语法错误: ${parseError.message}`);
+                }
+                
+                // 清空元素内容，准备渲染（使用预处理后的代码）
+                element.innerHTML = '';
+                element.textContent = processedCode;
+                
+                // 为ER图添加标识
+                if (isERDiagram) {
+                    element.setAttribute('data-type', 'er');
+                }
+                
+                // 等待DOM更新（ER图需要更长时间）
+                const waitTime = isERDiagram ? 200 : 100;
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                
+                // 使用Promise包装，设置超时（ER图需要更长时间）
+                const timeoutDuration = isERDiagram ? 20000 : 10000;
+                const renderPromise = mermaid.run({
+                    nodes: [element],
+                    suppressErrors: true
+                });
+                
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('渲染超时')), timeoutDuration);
+                });
+                
+                // 等待渲染完成
+                await Promise.race([renderPromise, timeoutPromise]);
+                
+                // 渲染完成后，检查是否有NaN错误（ER图需要更长时间）
+                const checkWaitTime = isERDiagram ? 500 : 300;
+                await new Promise(resolve => setTimeout(resolve, checkWaitTime));
+                
+                // 检查生成的SVG中是否有NaN
+                const svg = element.querySelector('svg');
+                if (svg) {
+                    const svgContent = svg.outerHTML;
+                    if (svgContent.includes('NaN')) {
+                        throw new Error('检测到NaN值，图表渲染失败');
+                    }
+                    
+                    // 检查所有path元素的d属性
+                    const paths = svg.querySelectorAll('path');
+                    for (const path of paths) {
+                        const d = path.getAttribute('d');
+                        if (d && d.includes('NaN')) {
+                            throw new Error('检测到路径中包含NaN值');
+                        }
+                    }
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('[Mermaid] 渲染错误:', error);
+                throw error;
+            }
+        }
+        
+        // 渲染 Mermaid 图表
+        async function renderMermaidDiagrams(container) {
+            const mermaidElements = container.querySelectorAll('.mermaid');
+            for (let i = 0; i < mermaidElements.length; i++) {
+                const element = mermaidElements[i];
+                try {
+                    // 清空之前的内容（如果有）
+                    let mermaidCode = element.textContent.trim();
+                    if (!mermaidCode) {
+                        continue;
+                    }
+                    
+                    // 使用安全的渲染函数（会自动预处理ER图）
+                    await safeRenderMermaid(element, mermaidCode);
+                } catch (error) {
+                    console.error('Mermaid 渲染错误:', error);
+                    const errorMsg = error.message || '未知错误';
+                    const originalCode = element.textContent || mermaidCode || '';
+                    element.innerHTML = `<div style="color: #f44336; padding: 20px; border: 1px solid #f44336; border-radius: 8px; background: rgba(244, 67, 54, 0.1);">
+                        <strong>⚠️ Mermaid图表渲染失败</strong><br>
+                        <small>错误: ${errorMsg}</small><br>
+                        ${errorMsg.includes('NaN') ? '<small style="color: #ff9800;">提示: 这可能是由于图表定义问题或容器尺寸问题导致的</small><br>' : ''}
+                        <details style="margin-top: 10px;">
+                            <summary style="cursor: pointer; color: #666;">查看原始代码</summary>
+                            <pre style="margin-top: 5px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 12px; overflow-x: auto; max-height: 200px; overflow-y: auto;">${originalCode.substring(0, 1000)}</pre>
+                        </details>
+                    </div>`;
+                }
+            }
+        }
+
+        // 渲染预览
+        async function renderPreview() {
+            try {
+                // 处理Markdown内容
+                const processedMarkdown = await processMarkdownWithGLM(markdownContent);
+                const html = marked.parse(processedMarkdown);
+                previewContent.innerHTML = html;
+                
+                // 先显示预览区域，确保容器有尺寸
+                previewSection.style.display = 'block';
+                
+                // 等待 DOM 更新
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // 渲染 Mermaid 图表
+                await renderMermaidDiagrams(previewContent);
+            } catch (error) {
+                console.error('渲染预览出错:', error);
+                // 如果处理失败，使用原始内容
+                const html = marked.parse(markdownContent);
+                previewContent.innerHTML = html;
+                previewSection.style.display = 'block';
+                
+                // 等待 DOM 更新
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                await renderMermaidDiagrams(previewContent);
+            }
+        }
+
+        // 检查库是否已加载
+        function checkLibraryLoaded() {
+            return typeof HTMLDocx !== 'undefined' || 
+                   typeof htmlDocx !== 'undefined' || 
+                   typeof asBlob !== 'undefined';
+        }
+
+        // 转换为 Word
+        convertBtn.addEventListener('click', async () => {
+            if (!markdownContent) {
+                alert('请先选择 Markdown 文件');
+                return;
+            }
+
+            // 检查库是否已加载
+            if (!checkLibraryLoaded()) {
+                alert('Word 转换库正在加载中，请稍候再试。如果问题持续，请刷新页面。');
+                return;
+            }
+
+            loading.classList.add('show');
+            convertBtn.disabled = true;
+            successMessage.classList.remove('show');
+
+            try {
+                await convertToWord(markdownContent);
+                successMessage.classList.add('show');
+                setTimeout(() => {
+                    successMessage.classList.remove('show');
+                }, 3000);
+            } catch (error) {
+                console.error('转换失败:', error);
+                alert('转换失败: ' + error.message);
+            } finally {
+                loading.classList.remove('show');
+                convertBtn.disabled = false;
+            }
+        });
+
+        // 清除
+        clearBtn.addEventListener('click', () => {
+            markdownContent = '';
+            currentFileName = '';
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            previewSection.style.display = 'none';
+            previewContent.innerHTML = '';
+            convertBtn.disabled = true;
+            clearBtn.style.display = 'none';
+            successMessage.classList.remove('show');
+        });
+
+        // 将 SVG 转为 PNG DataURL，按内容边界裁剪，不留空白区域
+        function svgToPngDataUrl(svgEl, optWidth, optHeight) {
+            return new Promise((resolve, reject) => {
+                try {
+                    const svg = svgEl.cloneNode(true);
+                    let width, height;
+                    const padding = 0;
+                    let box = null;
+                    try {
+                        if (svg.getBBox) box = svg.getBBox();
+                        if (!box || box.width <= 0 || box.height <= 0) {
+                            const g = svg.querySelector('g');
+                            if (g && g.getBBox) box = g.getBBox();
+                        }
+                        if (box && box.width > 0 && box.height > 0) {
+                            width = Math.round(box.width + padding * 2);
+                            height = Math.round(box.height + padding * 2);
+                            svg.setAttribute('viewBox', `${box.x - padding} ${box.y - padding} ${box.width + padding * 2} ${box.height + padding * 2}`);
+                            svg.setAttribute('width', width);
+                            svg.setAttribute('height', height);
+                        } else {
+                            throw new Error('no bbox');
+                        }
+                    } catch (_) {
+                        const vb = (svgEl.getAttribute('viewBox') || '').trim().split(/\s+/);
+                        if (vb.length === 4) {
+                            const vw = parseFloat(vb[2]), vh = parseFloat(vb[3]);
+                            if (vw > 0 && vh > 0) {
+                                width = Math.round(vw);
+                                height = Math.round(vh);
+                                svg.setAttribute('viewBox', svgEl.getAttribute('viewBox'));
+                                svg.setAttribute('width', width);
+                                svg.setAttribute('height', height);
+                            } else {
+                                throw new Error('invalid viewBox');
+                            }
+                        } else {
+                            let w = optWidth ?? parseFloat(svgEl.getAttribute('width')) ?? 800;
+                            let h = optHeight ?? parseFloat(svgEl.getAttribute('height')) ?? 600;
+                            if (!w || w !== w) w = 800;
+                            if (!h || h !== h) h = 600;
+                            width = Math.max(100, Math.round(w));
+                            height = Math.max(100, Math.round(h));
+                            svg.setAttribute('width', width);
+                            svg.setAttribute('height', height);
+                            if (!svg.getAttribute('viewBox')) {
+                                svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+                            }
+                        }
+                    }
+
+                    // 限制内容尺寸
+                    const maxContentPx = 624;
+                    if (Math.max(width, height) > maxContentPx) {
+                        const f = maxContentPx / Math.max(width, height);
+                        width = Math.round(width * f);
+                        height = Math.round(height * f);
+                        svg.setAttribute('width', width);
+                        svg.setAttribute('height', height);
+                    }
+                    const scale = 2;
+                    let canvasW = width * scale;
+                    let canvasH = height * scale;
+                    // Word 按 96 DPI 显示：宽度 ≤16.5cm(623px)，高度 ≤22cm(831px)
+                    const maxPngWidthPx = 623;
+                    const maxPngHeightPx = 831;
+                    if (canvasW > maxPngWidthPx || canvasH > maxPngHeightPx) {
+                        const rW = maxPngWidthPx / canvasW;
+                        const rH = maxPngHeightPx / canvasH;
+                        const r = Math.min(rW, rH, 1);
+                        canvasW = Math.round(canvasW * r);
+                        canvasH = Math.round(canvasH * r);
+                    }
+
+                    const svgStr = new XMLSerializer().serializeToString(svg);
+                    const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
+                    const img = new Image();
+                    img.onload = function () {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = canvasW;
+                        canvas.height = canvasH;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(img, 0, 0, width, height, 0, 0, canvasW, canvasH);
+                        try {
+                            resolve(canvas.toDataURL('image/png'));
+                        } catch (e) {
+                            reject(e);
+                        }
+                    };
+                    img.onerror = function () {
+                        reject(new Error('SVG 转图片失败'));
+                    };
+                    img.src = dataUrl;
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        // 将 Mermaid 图表转换为图片（Base64）：优先用 SVG→PNG，失败时再用 html2canvas
+        async function convertMermaidToImage(mermaidElement) {
+            const svg = mermaidElement.querySelector('svg');
+            if (!svg) {
+                throw new Error('Mermaid SVG 未找到');
+            }
+            let w, h;
+            try {
+                const box = svg.getBBox ? svg.getBBox() : null;
+                w = parseFloat(svg.getAttribute('width')) || box?.width || svg.clientWidth || mermaidElement.offsetWidth || 800;
+                h = parseFloat(svg.getAttribute('height')) || box?.height || svg.clientHeight || mermaidElement.offsetHeight || 600;
+            } catch (_) {
+                w = 800;
+                h = 600;
+            }
+            w = Math.max(400, Math.round(w));
+            h = Math.max(300, Math.round(h));
+            try {
+                return await svgToPngDataUrl(svg, w, h);
+            } catch (e1) {
+                try {
+                    const canvas = await html2canvas(mermaidElement, {
+                        backgroundColor: '#ffffff',
+                        scale: 2,
+                        logging: false,
+                        width: w,
+                        height: h,
+                        useCORS: true,
+                        allowTaint: true
+                    });
+                    return canvas.toDataURL('image/png');
+                } catch (e2) {
+                    throw e1;
+                }
+            }
+        }
+
+        // 处理 HTML 中的 Mermaid 图表，转换为图片（导出 Word 用）
+        // 若 .mermaid 内已有 SVG（来自预览），直接转图；否则在临时容器中渲染后再转图
+        async function processMermaidInHTML(htmlString) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = htmlString;
+            
+            const mermaidDiagrams = tempDiv.querySelectorAll('.mermaid-diagram');
+            let needRender = false;
+            for (const d of mermaidDiagrams) {
+                const m = d.querySelector('.mermaid');
+                if (m && (m.textContent || '').trim() && !m.querySelector('svg')) {
+                    needRender = true;
+                    break;
+                }
+            }
+            if (needRender) {
+                tempDiv.setAttribute('id', 'mermaid-export-container');
+                tempDiv.style.cssText = 'position:absolute;left:-9999px;top:0;width:900px;min-height:700px;opacity:0.01;pointer-events:none;z-index:-1;';
+                document.body.appendChild(tempDiv);
+            }
+            
+            for (let i = 0; i < mermaidDiagrams.length; i++) {
+                const diagram = mermaidDiagrams[i];
+                const mermaidElement = diagram.querySelector('.mermaid');
+                if (!mermaidElement) continue;
+                
+                const existingSvg = mermaidElement.querySelector('svg');
+                const originalCode = (mermaidElement.textContent || '').trim();
+                
+                try {
+                    if (existingSvg && !(existingSvg.outerHTML && existingSvg.outerHTML.includes('NaN'))) {
+                        // 已有有效 SVG（来自预览），直接转成图片写入 Word
+                        const imageData = await convertMermaidToImage(diagram);
+                        const img = document.createElement('img');
+                        img.src = imageData;
+                        img.alt = 'Mermaid 图表';
+                        img.style.width = '16.5cm';
+                        img.style.maxWidth = '16.5cm';
+                        img.style.height = 'auto';
+                        img.style.maxHeight = '22cm';
+                        img.style.display = 'block';
+                        img.style.margin = '20px auto';
+                        diagram.parentNode.replaceChild(img, diagram);
+                        continue;
+                    }
+                    
+                    if (!originalCode) continue;
+                    
+                    const processedCode = preprocessERDiagramCode(originalCode);
+                    const isERDiagram = processedCode.toLowerCase().startsWith('erdiagram') ||
+                        processedCode.includes('erDiagram');
+                    const isComplex = processedCode.includes('subgraph') || processedCode.split('\n').length > 15;
+                    
+                    mermaidElement.innerHTML = '';
+                    mermaidElement.textContent = processedCode;
+                    mermaidElement.style.display = 'block';
+                    mermaidElement.style.width = '100%';
+                    mermaidElement.style.minWidth = isERDiagram ? '800px' : '500px';
+                    mermaidElement.style.minHeight = isERDiagram ? '600px' : '400px';
+                    
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    await mermaid.run({
+                        nodes: [mermaidElement],
+                        suppressErrors: true
+                    });
+                    
+                    const waitMs = isERDiagram ? 3000 : (isComplex ? 2500 : 1500);
+                    await new Promise(r => setTimeout(r, waitMs));
+                    
+                    const svg = mermaidElement.querySelector('svg');
+                    const diagramHtml = diagram.innerHTML || '';
+                    if (!svg ||
+                        diagramHtml.includes('Syntax error') ||
+                        diagramHtml.includes('mermaid version') ||
+                        diagramHtml.includes('NaN') ||
+                        (svg.outerHTML && svg.outerHTML.includes('NaN'))) {
+                        throw new Error('Mermaid 渲染结果无效');
+                    }
+                    
+                    const imageData = await convertMermaidToImage(diagram);
+                    
+                    const img = document.createElement('img');
+                    img.src = imageData;
+                    img.alt = 'Mermaid 图表';
+                    img.style.width = '16.5cm';
+                    img.style.maxWidth = '16.5cm';
+                    img.style.height = 'auto';
+                    img.style.maxHeight = '22cm';
+                    img.style.display = 'block';
+                    img.style.margin = '20px auto';
+                    
+                    diagram.parentNode.replaceChild(img, diagram);
+                } catch (error) {
+                    console.error('Mermaid 转图片失败:', error);
+                    const fallback = document.createElement('div');
+                    fallback.style.margin = '12pt 0';
+                    fallback.style.padding = '10pt';
+                    fallback.style.background = '#f8f9fa';
+                    fallback.style.borderLeft = '4px solid #667eea';
+                    fallback.innerHTML = `<p style="margin:0 0 8pt 0; color:#666;">[Mermaid 图表导出为图片失败，以下为原始代码，可在支持 Mermaid 的编辑器中查看]</p><pre style="margin:0; font-size:10pt; overflow-x:auto;"><code>${escapeHtml(originalCode || '')}</code></pre>`;
+                    diagram.parentNode.replaceChild(fallback, diagram);
+                }
+            }
+            
+            const result = tempDiv.innerHTML;
+            const parent = tempDiv.parentNode;
+            if (parent) parent.removeChild(tempDiv);
+            return result;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 将 HTML 中的表格转为图片（如需求全景工作台等），导出到 Word 时以图片形式呈现
+        async function processTablesAsImages(htmlString) {
+            const tempDiv = document.createElement('div');
+            tempDiv.style.cssText = 'position:absolute;left:-9999px;top:0;width:800px;background:#fff;padding:0;visibility:visible;';
+            tempDiv.innerHTML = htmlString;
+            document.body.appendChild(tempDiv);
+            const tables = Array.from(tempDiv.querySelectorAll('table'));
+            for (const table of tables) {
+                try {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'padding:12px;background:#fff;display:inline-block;border:1px solid #e0e0e0;border-radius:4px;';
+                    const style = document.createElement('style');
+                    style.textContent = 'table{border-collapse:collapse;width:100%;font-size:11pt;font-family:Microsoft YaHei,SimSun,sans-serif;}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;}th{background:#667eea;color:#fff;font-weight:bold;}tr:nth-child(even){background:#f8f9ff;}';
+                    wrapper.appendChild(style);
+                    wrapper.appendChild(table.cloneNode(true));
+                    document.body.appendChild(wrapper);
+                    wrapper.style.position = 'absolute';
+                    wrapper.style.left = '-9999px';
+                    await new Promise(r => setTimeout(r, 100));
+                    const canvas = await html2canvas(wrapper, {
+                        backgroundColor: '#ffffff',
+                        scale: 2,
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true
+                    });
+                    document.body.removeChild(wrapper);
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.alt = '表格';
+                    img.style.maxWidth = '16.5cm';
+                    img.style.maxHeight = '22cm';
+                    img.style.width = 'auto';
+                    img.style.height = 'auto';
+                    img.style.display = 'block';
+                    img.style.margin = '12pt 0';
+                    table.parentNode.replaceChild(img, table);
+                } catch (e) {
+                    console.warn('表格转图片失败，保留原表格:', e);
+                }
+            }
+            const result = tempDiv.innerHTML;
+            if (tempDiv.parentNode) tempDiv.parentNode.removeChild(tempDiv);
+            return result;
+        }
+
+        // 将 HTML 中的代码块（pre）转为图片，避免在 Word 中格式错乱（如模块依赖关系等）
+        async function processCodeBlocksAsImages(htmlString) {
+            const tempDiv = document.createElement('div');
+            tempDiv.style.cssText = 'position:absolute;left:-9999px;top:0;width:800px;background:#fff;padding:0;visibility:visible;';
+            tempDiv.innerHTML = htmlString;
+            document.body.appendChild(tempDiv);
+            const pres = Array.from(tempDiv.querySelectorAll('pre'));
+            for (const pre of pres) {
+                if (pre.closest('.mermaid-diagram')) continue;
+                try {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.cssText = 'padding:12px 16px;background:#f8f9fa;display:inline-block;border:1px solid #e0e0e0;border-radius:4px;font-family:Consolas,Monaco,Microsoft YaHei,monospace;font-size:11pt;line-height:1.5;white-space:pre-wrap;word-break:break-all;max-width:623px;';
+                    wrapper.appendChild(pre.cloneNode(true));
+                    document.body.appendChild(wrapper);
+                    wrapper.style.position = 'absolute';
+                    wrapper.style.left = '-9999px';
+                    await new Promise(r => setTimeout(r, 100));
+                    const canvas = await html2canvas(wrapper, {
+                        backgroundColor: '#f8f9fa',
+                        scale: 2,
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true
+                    });
+                    document.body.removeChild(wrapper);
+                    // Word 按图片像素尺寸显示，限制 PNG 宽度 623px≈16.5cm、高度 831px≈22cm
+                    const maxW = 623, maxH = 831;
+                    let cw = canvas.width, ch = canvas.height;
+                    let finalCanvas = canvas;
+                    if (cw > maxW || ch > maxH) {
+                        const r = Math.min(maxW / cw, maxH / ch, 1);
+                        cw = Math.round(cw * r);
+                        ch = Math.round(ch * r);
+                        const small = document.createElement('canvas');
+                        small.width = cw;
+                        small.height = ch;
+                        small.getContext('2d').drawImage(canvas, 0, 0, canvas.width, canvas.height, 0, 0, cw, ch);
+                        finalCanvas = small;
+                    }
+                    const dataUrl = finalCanvas.toDataURL('image/png');
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.alt = '代码块';
+                    img.style.width = '16.5cm';
+                    img.style.maxWidth = '16.5cm';
+                    img.style.height = 'auto';
+                    img.style.maxHeight = '22cm';
+                    img.style.display = 'block';
+                    img.style.margin = '12pt 0';
+                    pre.parentNode.replaceChild(img, pre);
+                } catch (e) {
+                    console.warn('代码块转图片失败，保留原内容:', e);
+                }
+            }
+            const result = tempDiv.innerHTML;
+            if (tempDiv.parentNode) tempDiv.parentNode.removeChild(tempDiv);
+            return result;
+        }
+
+        // 转换函数
+        async function convertToWord(markdown) {
+            // 处理Markdown内容，对特殊代码块调用GLM生成说明
+            const processedMarkdown = await processMarkdownWithGLM(markdown);
+            // 优先使用已渲染的预览 DOM（含 Mermaid SVG），避免在隐藏容器中重渲染导致失败
+            let html;
+            if (previewContent.innerHTML && previewContent.querySelector('.mermaid-diagram')) {
+                html = previewContent.innerHTML;
+            } else {
+                html = marked.parse(processedMarkdown);
+            }
+            
+            // 将 Mermaid 图表（SVG）转为图片后再导出到 Word；表格保持为 Word 原生表格，不转成图片
+            html = await processMermaidInHTML(html);
+            // 将代码块（pre）转为图片，避免在 Word 中格式错乱（如模块依赖关系等）
+            html = await processCodeBlocksAsImages(html);
+            
+            // 创建完整的 HTML 文档结构，包含样式
+            const fullHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: "Microsoft YaHei", "SimSun", Arial, sans-serif;
+            font-size: 12pt;
+            line-height: 1.6;
+            margin: 40px;
+            color: #333;
+        }
+        h1 {
+            font-size: 24pt;
+            font-weight: bold;
+            margin: 20pt 0 12pt 0;
+            border-bottom: 2px solid #333;
+            padding-bottom: 6pt;
+        }
+        h2 {
+            font-size: 18pt;
+            font-weight: bold;
+            margin: 16pt 0 10pt 0;
+        }
+        h3 {
+            font-size: 14pt;
+            font-weight: bold;
+            margin: 14pt 0 8pt 0;
+        }
+        h4 {
+            font-size: 12pt;
+            font-weight: bold;
+            margin: 12pt 0 6pt 0;
+        }
+        h5, h6 {
+            font-size: 11pt;
+            font-weight: bold;
+            margin: 10pt 0 6pt 0;
+        }
+        p {
+            margin: 6pt 0;
+        }
+        ul, ol {
+            margin: 6pt 0 6pt 20pt;
+        }
+        li {
+            margin: 3pt 0;
+        }
+        blockquote {
+            border-left: 4px solid #ccc;
+            padding-left: 12pt;
+            margin: 12pt 0;
+            color: #666;
+            font-style: italic;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12pt 0;
+            font-size: 11pt;
+        }
+        table th {
+            background-color: #667eea;
+            color: white;
+            font-weight: bold;
+            padding: 8pt;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+        table td {
+            padding: 6pt 8pt;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        table tr:nth-child(even) {
+            background-color: #f8f9ff;
+        }
+        img {
+            width: 16.5cm;
+            max-width: 16.5cm;
+            max-height: 22cm;
+            height: auto;
+            margin: 12pt 0;
+            display: block;
+        }
+        code {
+            background-color: #f4f4f4;
+            padding: 2pt 4pt;
+            border-radius: 3pt;
+            font-family: "Courier New", monospace;
+            font-size: 10pt;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10pt;
+            border-radius: 5pt;
+            overflow-x: auto;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+${html}
+</body>
+</html>
+            `;
+
+            // 检查 html-docx-js 是否已加载并转换
+            let converted;
+            try {
+                if (typeof HTMLDocx !== 'undefined' && HTMLDocx.asBlob) {
+                    // 使用 HTMLDocx.asBlob 方法
+                    converted = HTMLDocx.asBlob(fullHtml);
+                } else if (typeof htmlDocx !== 'undefined' && htmlDocx.asBlob) {
+                    // 尝试另一种可能的全局变量名
+                    converted = htmlDocx.asBlob(fullHtml);
+                } else if (typeof asBlob !== 'undefined') {
+                    // 直接使用 asBlob 函数
+                    converted = asBlob(fullHtml);
+                } else {
+                    // 如果库未加载，抛出错误
+                    const errorMsg = 'Word 转换库未正确加载。\n' +
+                        '请检查：\n' +
+                        '1. 网络连接是否正常\n' +
+                        '2. 浏览器控制台是否有错误信息\n' +
+                        '3. 尝试刷新页面重试\n\n' +
+                        '调试信息：\n' +
+                        `- HTMLDocx: ${typeof HTMLDocx}\n` +
+                        `- htmlDocx: ${typeof htmlDocx}\n` +
+                        `- asBlob: ${typeof asBlob}`;
+                    throw new Error(errorMsg);
+                }
+                
+                // 下载文件
+                const fileName = currentFileName || 'document';
+                saveAs(converted, `${fileName}.docx`);
+            } catch (error) {
+                console.error('转换过程中的错误:', error);
+                throw error;
+            }
+        }
+    </script>
+</body>
+</html>
